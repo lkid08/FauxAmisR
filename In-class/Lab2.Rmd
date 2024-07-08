@@ -1,6 +1,0 @@
-{r}
-install.packages("tidyverse")
-
-library(tidyverse)
-heroes <- read_csv("https://raw.githubusercontent.com/Pozdniakov/tidy_stats/master/data/heroes_information.csv")
-str(heroes)
