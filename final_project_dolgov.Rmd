@@ -7,104 +7,128 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Анализ качества перевода англо-французских текстов с “ложными друзьями переводчика”, производимого разными seq2seq моделями.
+# Analysis of Faux Amis (False Cognates) translation quality in English-French Machine Translation
 
 
-## Цели исследования, гипотезы, которые будут тестироваться.
+## Research objectives, hypotheses to be tested.
 
-В качестве цели исследования я выбрал 
+The main research objective of this study is finding the best machine translation model for English to French translation with an emphasis on false cognates. 
 
-Эта тема мне была интересна столько, сколько я учил языки - так называемые "ложные друзья переводчика". 
-Ложные друзья переводчика (или межъязыковые омонимы / паронимы) - это слова в двух языках, похожие по написанию или произношению, но отличающиеся в значении.
+I have been interested in this topic for as long as I have been learning languages - the translation of so-called "faux amis" or "false friends". 
+False cognates (or interlingual homonyms / paronyms) are words in two languages that are similar in spelling or pronunciation but different in meaning.
 
-Поскольку язык - невероятно сложная система, которая зависит не только от своих внутренних правил, но и от других языков, перевод - многогранный и тяжелый труд. Несмотря на свое название, ложные друзья в этом не помогают - наоборот, они могут приводить к неправильному пониманию и переводу текста. 
-Ввиду того, что мы уже наблюдаем серьезное развитие систем машинного перевода, я считаю важным изучить их способность переводить такие слова, которые могут легко ввести в заблуждение человека. 
+As language is an incredibly complex system that depends not only on its own internal rules but also on other languages, translation is a multifaceted and arduous endeavor. Despite their name, false friends do not help with this - on the contrary, they can lead to misunderstanding and incorrect translation of the text. 
+In view of the fact that we are already seeing great development of machine translation systems, I believe it is important to study their ability to translate words that can easily mislead humans. 
 
-В качестве моделей машинного перевода, которые будут использоваться для сравнения качества перевода, я выбрал MBart, NLLB и ALIGN. Все три модели могут переводить как с английского на французский, так и наоборот.
-
-
-### Гипотезы
-
-Я выделил следующую нулевую гипотезу: 
-
-  H0: Качество такого перевода не зависит от модели.
-
-Она имеет место быть, поскольку современные модели, обученные на качественных двуязычных датасетах, вполне могут обладать достаточными способностями к пониманию контекста, чтобы правильно переводить предложения, не теряя качества на "ложных друзьях".
-
-Альтернативных гипотез всего три: 
-
-  H1: Качество такого перевода выше у модели архитектуры MBart.
-  H1: Качество такого перевода выше у модели архитектуры NLLB.
-  H1: Качество такого перевода выше у модели архитектуры ALIGN.
-
-По одной гипотезе выделено на случай, если одна из моделей покажет качество лучше, чем другие. Такое вполне реально, ведь датасеты могут различаться качеством, размером и представленностью "друзей". 
+I have chosen MBart, NLLB and ALIGN as the machine translation models that will be used to compare translation quality. All three models can translate from English to French and vice versa.
 
 
-## Предыдущие исследования.
+### Hypotheses.
 
-Тема "ложных друзей переводчика", особенно в языковой паре французкий-английский, относительно слабо развита. 
+I have highlighted the following null hypothesis: 
 
-Задача создания датасета межъязыковых паронимов с целью изучить или улучшить модели машинного перевода решается в статье Challenge Dataset of Cognates and False Friend Pairs from Indian Languages [1], но, как очевидно из названия, только для индийских языков. 
+  H0: The translation quality is independent of the model.
 
-Существует также статья Automatic Identification of Cognates, False Friends, and Partial Cognates [2], в которой автор предлагает обособленный инструмент для автоматического определения "ложных друзей". Классификатор задумывался для улучшения моделей и систем машинного перевода, и был разработан для языковой пары французский-английский.
+It holds because modern models trained on high-quality bilingual datasets may well have sufficient context awareness abilities to translate sentences correctly in spite of false cognates.
 
-Однако, датасет, который авторы использовали для обучения классификатора, находится в закрытом доступе, а некоторые ссылки, предоставленные в работе, уже не работают. 
+There are three alternative hypotheses: 
+
+  H1: MBart has a higher translation quality.
+  
+  H1: NLLB has a higher translation quality.
+  
+  H1: ALIGN has a higher translation quality.
+
+One hypothesis is allocated to each of the models, in case one shows better quality than the others. This is quite realistic, because datasets can differ in quality, size, and representation of "false friends". 
 
 
-## Описание исходных данных. 
+## Previous research.
 
-Таким образом, датасета, сфокусированного именно на "ложных друзьях" во французском и английском в открытом доступе нет, а потому я решил самостоятельно его собрать. 
-Для этого я определил список таких пар и отобрал самые частотные из них (здесь частотность определена эвристически, на основе 8-и и 16-ти летнего опыта изучения французского и английского языков соответственно). 
-Конкретные пары я парсил с нескольких сайтов[3][4][5], указанных в конце исследования, затем отбирал вручную. 
-Итоговый размер датасета - 74 пары "друзей". 
+The topic of false cognates, especially in the French-English language pair, is relatively underdeveloped. 
 
-Для каждой пары я составил по четыре предложения: 
-- предложение на английском ()
-- перевод на французский 
-- предложение на французском 
-- перевод на английский 
+The challenge of creating a dataset of interlingual paronyms in order to learn or improve machine translation models is addressed in the paper Challenge Dataset of Cognates and False Friend Pairs from Indian Languages [1], but, as is obvious from the title, only for Indian languages. 
 
-Затем, каждый перевод я оценил с помощью двух метрик - нормализованного расстояния Левенштейна и BLEU score. 
-Расстояние Левенштейна дает общее понимание похожести двух строк, а BLEU показывает непосредственно качество перевода.
+In their paper Automatic Identification of Cognates, False Friends, and Partial Cognates [2], the author proposes a standalone tool for automatic identification of "false friends". The classifier was conceived to improve machine translation models and systems, and was designed for the French-English language pair.
 
-Переменные в датасете разделены на две части:
-1. Данные для перевода:
-  - en_fa - "ложный друг" на английском
-  - fr_fa - "ложный друг" на французском
-  - mode - направленность перевода - EnFr | FrEn
-  - sent - исходное сообщение (язык зависит от направленности)
-  - trans - сообщение, переведенное вручную 
-  - trans_MBart - перевод модели MBart
-  - trans_NLLB - перевод модели NLLB
-  - trans_ALIGN - перевод модели ALIGN
-  - POSent - позиция "друга" в предложении - "start" | "mid" | "end"
-2. Метрики оценки машинного перевода:
+However, the dataset that the authors used to train the classifier is not open to the public, and some of the references provided in the paper cannot be accessed. 
+
+
+## Description of the original dataset. 
+
+As there is no dataset focused specifically on false cognates in French and English in the public domain, I decided to create it myself. 
+For this purpose, I defined a list of such word pairs and selected the most frequent ones (here the frequency is determined heuristically, based on many years of experience in learning both French and English on a high academic level). 
+I parsed the specific pairs from several sites[3][4][5] listed at the end of the study, then hand-picked them. 
+The final size of the dataset is 74 pairs of false cognates. 
+
+For each pair, I wrote four sentences: 
+
+- English sentence 
+
+- French translation 
+
+- French sentence 
+
+- English translation
+
+Then, I scored each translation using two metrics, the normalized Levenshtein distance and the BLEU score. 
+Levenshtein distance gives a general sense of the similarity of two strings, and BLEU shows the quality of the translation specifically.
+
+The variables in the dataset are divided into two parts:
+
+1. Data for translation:
+
+  - en_fa - "false friend" in English
+  
+  - fr_fa - "false friend" in French
+  
+  - mode - translation direction - EnFr | FrEn
+  
+  - sent - original message (language depends on translation direction)
+  
+  - trans - manually translated message 
+  
+  - trans_MBart - translation of the MBart model
+  
+  - trans_NLLB - translation of the NLLB model
+  
+  - trans_ALIGN - translation of the ALIGN model
+  
+  - POSent - position of the false cognate in the sentence - "start" | "mid" | "end"
+  
+2. Metrics for evaluating machine translation:
+
   - Levenshtein_MBart 
+  
   - BLEU_MBart 
+  
   - Levenshtein_NLLB 
+  
   - BLEU_NLLB 
+  
   - Levenshtein_ALIGN 
+  
   - BLEU_ALIGN 
 
-Все переменные в первой части - категориальные (строковые), во второй - числовые, с плавающей точкой. 
+All variables in the first part are categorical (string), in the second part they are numeric, floating point variables. 
 
 ```{r}
 library(tidyverse)
 
-data <- read.csv("data/final_project_data_dolgov.csv")
+data <- read.csv("C:\\Users\\nikol\\OneDrive\\Desktop\\HSE_R\\FauxAmisR\\final_project_data_dolgov.csv")
 summary(data)
 head(data)
 ```
 
-## Методы анализа.
+## Analysis Methods.
 
-При анализе датасета я буду использовать следующие методы: 
-- тесты ANOVA, T-test (статистический анализ)
-- гистограммы, ящики с усами, кореллограмму (визуализация)
-- фильтрование выбросов - слишком длинных и коротких предложений 
+I will use the following methods to analyze the dataset: 
+
+- ANOVA tests, T-test (statistical analysis)
+
+- histograms, boxplots, corellogram (visualization)
 
 
-## Описательная статистика.
+## Descriptive Statistics.
 
 ```{r position}
 library(ggplot2)
@@ -112,24 +136,24 @@ library(ggplot2)
 p <- data %>%
   ggplot(aes(x=POSent)) +
   geom_histogram(stat="count") +
-  ggtitle('Распределение позиции паронима')
+  ggtitle('False cognate position distribution')
 p
 ```
 
-Для начала стоит проверить, есть ли в датасете пустые элементы, или предложения, которые сильно длиннее или короче других? 
-Оба этих критерия могут повлиять на среднее качество перевода. 
+First, it is worth checking if there are empty elements in the dataset, or sentences that are much longer or shorter than others. 
+Both of these criteria can affect the average quality of the translation.
 
 ```{r length}
-print(paste("Кол-во пустых строк:", sum(is.na(data))))
+print(paste("Number of empty elements:", sum(is.na(data))))
 
 props <- prop.table(table(data$mode))[1]
-print(paste("Соотношение предложений на английском и французском: ", props))
+print(paste("Proportion of English to French sentences: ", props))
 
 data$len_sent <- nchar(data$sent)
 data$len_trans <- nchar(data$trans)
 
-print(paste("Средняя длина исходных предложений: ", mean(data$len_sent)))
-print(paste("Средняя длина переведенных предложений: ", mean(data$len_trans)))
+print(paste("Mean original sentence length: ", mean(data$len_sent)))
+print(paste("Mean original translation length: ", mean(data$len_trans)))
 
 hist_data <- data %>%
   pivot_longer(cols=(len_sent:len_trans), names_to="attr", values_to="length")
@@ -137,22 +161,22 @@ hist_data <- data %>%
 p <- hist_data %>%
   ggplot(aes(x=length, group=attr, fill=attr)) +
   geom_histogram(binwidth=1, alpha=0.5, position="identity") +
-  scale_x_continuous(name = "Длина в символах",
+  scale_x_continuous(name = "Length in symbols",
                            breaks=seq(0, 80, 5)) +
-        scale_y_continuous(name = "Кол-во предложений",
+        scale_y_continuous(name = "Number of sentences",
                            breaks=seq(0, 15, 1)) +
-  ggtitle("Распределение длины предложений") +
+  ggtitle("Sentence length") +
   geom_vline(xintercept=mean(data$len_sent), size=1, colour="blue", linetype="dashed") +
   geom_vline(xintercept=mean(data$len_trans), size=1, colour="red", linetype="dashed")
 p
 ```
 
-В выборке пустых предложений или других пустых переменных нет, предложения представлены нормальным распределением длины как оригинальных, так и переведенных предложений. 
-Среднее значение длины приблизительно равно 41 симв.
+The dataset does not contain any empty sentences or other empty variables, sentences are represented by a normal distribution of length of both original and translated sentences. 
+The average length value is approximately 41 symbols.
 
-Соотношение предложений на обоих языках - ровно 50%. 
+The ratio of sentences in both languages is exactly 50%. 
 
-Далее стоит проанализировать представленные метрики. 
+Next, it is worth analyzing the evaluation metrics. 
 
 ```{r metrics}
 library(ggpubr)
@@ -174,13 +198,13 @@ bleu_bp <- box_data %>%
 
 arr <- ggarrange(lev_bp, bleu_bp, ncol=1, nrow=2)
 
-annotate_figure(arr, top=text_grob("Анализ распределения метрик"))
+annotate_figure(arr, top=text_grob("Metric distribution analysis"))
 
-print(paste("Общее среднее расстояние Левенштейна: ", mean(data$len_sent)))
+print(paste("Mean Levenshtein distance: ", mean(data$len_sent)))
 ```
 
 ```{r stats for metrics}
-print("Статистическое распределение расстояния Левенштейна")
+print("Statistical distribution of Levenshtein distance score")
 print("MBart")
 print(summary(data$Levenshtein_MBart))
 print("NLLB")
@@ -188,7 +212,7 @@ print(summary(data$Levenshtein_NLLB))
 print("ALIGN")
 print(summary(data$Levenshtein_ALIGN))
 
-print("Статистическое распределение BLEU score")
+print("Statistical distribution of BLEU score")
 print("MBart")
 print(summary(data$BLEU_MBart))
 print("NLLB")
@@ -197,9 +221,9 @@ print("ALIGN")
 print(summary(data$BLEU_ALIGN))
 ```
 
-Представленная статистика будет проанализирована в следующем разделе. 
+The presented statistics will be analyzed in the next section. 
 
-Также имеет смысл проверить данные на предмет корелляции, причем как на корелляцию метрик между собой, так и на корелляцию метрик с другими переменными: длиной исходных предложений, длиной переводов, направлением перевода и позицией паронима в предложении. 
+It is also worthwhile to check the data for correlations, both for the correlation of metrics among themselves and for the correlation of metrics with other variables: length of original sentences, length of translations, direction of translation, and position of the false cognate in the sentence. 
 
 ```{r}
 library(corrplot)
@@ -224,25 +248,23 @@ corrplot(cor_matrix, type = "upper",
          tl.col = "black", tl.srt = 45)
 ```
 
-Кореллограма показывает сильную корелляцию между метриками одного типа, и сильную отрицательную корелляцию между метриками разных видов. 
-Что касается категориальных переменных, только одна из них имеет небольшую корелляцию с метрикой BLEU модели MBart. Остальные взаимодействуют только между собой: так, длина исходного предложения кореллирует с длиной перевода, а длина перевода - с направлением перевода.
+The correlogram shows a strong correlation between metrics of the same type, and a strong negative correlation between metrics of different types. 
+As for the categorical variables, only one of them has a weak correlation with the BLEU metric of the MBart model. The others interact only with each other: the length of the original sentence correlates with the length of the translation and the length of the translation correlates with the direction of the translation.
 
-О последних двух корелляциях можно сказать только то, что они доказывают успешность моделей в сохранении длины текста при его переводе. 
-Также стоит учитывать, что в сравнении принимает участие французский и английский язык, причем французский известен своими сложными и многословными грамматическими структурами. Поэтому, можно предположить, что именно при переводе с английского на французский увеличивается длина перевода. 
+The last two correlations can only support the fact that the models efficiently preserve text length in translation. 
+It is also worth considering that one of the languages being compared, French, is known for its complex and verbose grammatical structures. Therefore, it can be assumed that the length of the sentence increases during English-to-French translation. 
 
 
-## Количественные результаты.
+## Quantitative Results.
 
-(фреквентистская статистика, разведочный анализ, байесовская статистика и т.п.) и их лингвистическая (содержательная) интерпретация
+Since the H0 for this study is that there is no significant difference in translation quality between the selected models, and there are three models, it makes sense to apply the ANOVA (analysis of variance). 
+We need to understand whether the mean of the metrics of any of the models differs from the overall mean. 
 
-Поскольку Н0 для этого исследования состоит в том, что между выбранными моделями нет существенной разницы в качестве перевода, а моделей три, имеет смысл применить дисперсионный анализ ANOVA. 
-Необходимо понять, отличается ли среднее значение метрик какой-либо из моделей от общего среднего значения. 
+In this one-way ANOVA test, the names of the metrics for the three models ("Levenshtein MBart", "Levenshtein NLLB", "Levenshtein ALIGN" and "BLEU MBart", "BLEU NLLB", "BLEU ALIGN") will be chosen as the independent variable from the Levenshtein and BLEU variables respectively. 
 
-В данном одностороннем ANOVA тесте в качестве независимой переменной будут выбраны названия метрик для трех моделей ("Levenshtein MBart", "Levenshtein NLLB", "Levenshtein ALIGN" и "BLEU MBart", "BLEU NLLB", "BLEU ALIGN" из переменных Levenshtein) и BLEU соответственно. 
+However, before conducting the ANOVA test, we need to make sure that the variance in the metrics for all three models is close to equal. To do this, we can perform a Levigne test. 
 
-Однако, прежде, чем проводить тест ANOVA, нужно убедиться, что дисперсия в метриках для всех трех моделей примерно одинаковая. Для этого можно провести тест Ливиня. 
-
-Начнем с расстояния Левенштейна. 
+First, we will analyze the Levenshtein distance variables. 
 
 ```{r Levene Levenshtein}
 library(car)
@@ -254,35 +276,35 @@ levene <- leveneTest(value_lev ~ Levenshtein, data=quantit_data)
 levene
 ```
 
-По результатам тестя Ливиня (высокое F-value и p-value < 0.05) видно, что дисперсия в группах расстояния Левенштейна разнится. 
-Это значит, что применить one-way ANOVA нельзя - не выполняется допущение о гомогенности. 
+According to the results of the Levene test (high F-value and p-value < 0.05), it can be seen that the variance in the Levenshtein distance groups is different. 
+This means that it is not possible to apply the one-way ANOVA - the homogeneity assumption is not met. 
 
-В таком случае, целесообразно применить непараметрический аналог - тест Краскела-Уоллиса. 
+In this case, it is reasonable to apply a nonparametric analog - the Kruskal-Wallis test. 
 
 ```{r Kruskal-Wallis}
 
 kruskal.test(value_lev ~ Levenshtein, data=quantit_data)
 ```
 
-Тест Краскел-Уоллиса показал p-value сильно ниже, чем 0.05, что свидетельствует о значимом различии между моделями.  
+The Kruskal-Wallis test showed a p-value much lower than 0.05, indicating a significant difference between the models.  
 
-Чтобы понять, как именно отличаются метрики моделей, нужно провести post-hoc test. 
-В данном случае, нужны попарные t-test-ы с поправкой на множественные сравнения, например тест Уилкоксона. 
-
+To understand exactly how the metrics of the models differ, we need to perform a post-hoc test. 
+In this case, we need pairwise t-tests with correction for multiple comparisons, for example, the Wilcoxon test.
 
 ```{r post hoc Wilcoxon}
 pairwise.wilcox.test(quantit_data$value_lev, quantit_data$Levenshtein, p.adj='BH')
 ```
 
-Тест Уилкоксона показал низкие (< 0.05) p-value для пар Levenshtein_MBart - Levenshtein_ALIGN и Levenshtein_MBart - Levenshtein_NLLB. В то же время, между Levenshtein NLLB и ALIGN различия сравнительно незначительные. 
-Опираясь на результаты этого теста, можно сделать вывод о том, что значимо отличается качество модели MBart. 
+The Wilcoxon test showed low (< 0.05) p-values for Levenshtein_MBart - Levenshtein_ALIGN and Levenshtein_MBart - Levenshtein_NLLB pairs. At the same time, the differences between Levenshtein NLLB and ALIGN are relatively insignificant. 
 
-Возвращаясь к анализу средних и медианных значений расстояний Левенштейна на этой модели, мы видим, что MBart обладает самым высоким средним расстоянием Левенштейна - 0.23 против 0.17 и 0.16 у NLLB и ALIGN соответственно. 
+Based on the results of this test, we can conclude that there is a significant difference in the quality of the MBart model translation. 
 
-Поскольку высокое расстояние Левенштейна свидетельствует о низкой похожести строк и, соответственно, низком качестве перевода, можно сделать промежуточный вывод о том, что MBart уступает по качеству NLLB и ALIGN, а из последней пары ALIGN обладает высшим качеством перевода. 
+Applying the analysis of the mean and median Levenshtein distances for this model, we see that MBart has the highest mean Levenshtein distance of 0.23 as opposed to 0.17 and 0.16 for NLLB and ALIGN, respectively. 
 
-Теперь следует вернуться ко второй метрике оценки качества перевода - BLEU. 
-Повторяя процедуру, стоит убедиться, что дисперсия в группах BLEU приблизительно равная. 
+Since a high Levenshtein distance indicates low string similarity and thus low translation quality, we can draw the intermediate conclusion that MBart is inferior to NLLB and ALIGN, and of the latter pair, ALIGN has the highest translation quality. 
+
+Now it is sensible to return to the second translation quality evaluation metric, BLEU. 
+Repeating the procedure, we should make sure that the variance in the BLEU groups is approximately equal. 
 
 ```{r Levene BLEU}
 quantit_data$BLEU <- factor(quantit_data$BLEU)
@@ -290,58 +312,66 @@ levene <- leveneTest(value_bleu ~ BLEU, data=quantit_data)
 levene
 ```
 
-В отличие от аналогичного теста на метрике расстояния Левенштейна, тест на метрике BLEU показал сравнительно низкое F-value, а также высокое p-value (>0.05). 
-Это значит, что дисперсия в группах BLEU не разнится, и можно применить one-way ANOVA - допущение о гомогенности выполняется.
+Unlike the test results for the Levenshtein distance metric, the BLEU Levene test showed a relatively low F-value as well as a high p-value (>0.05). 
+This means that the variance in the BLEU groups is not different, and a one-way ANOVA can be applied - the homogeneity assumption is met.
 
 ```{r one-way ANOVA}
 anova_ow <- aov(value_bleu ~ BLEU, data=quantit_data)
 summary(anova_ow)
 ```
 
-ANOVA тест показал относительно высокое F-value и низкое (< 0.05) p-value. Это значит, что Н0 об одинаковом качестве переводов можно отвергнуть, и перейти к post-hoc test-ам. 
-Применим тест Тьюки. 
+The ANOVA test showed a relatively high F-value and low (< 0.05) p-value. This means that the null hypothesis, asserting that the models have equal translation quality, can be rejected, and we can proceed to post-hoc tests. 
+Here, the Tukey test can be applied. 
 
 ```{r one-way Tukey}
 tukey_ow <- TukeyHSD(anova_ow)
 tukey_ow
 ```
 
-По итогам теста Тьюки низкие (< 0.05) p-value мы видим у пар BLEU_MBart - BLEU_ALIGN и BLEU_NLLB - BLEU_MBart, в то время как у пары BLEU_NLLB - BLEU_ALIGN p-value высокое. 
-Это снова говорит о том, что NLLB и ALIGN примерно равны по качеству, а качество MBart в значимой степени отличается. 
+Based on the Tukey test, we see low (< 0.05) p-values for the BLEU_MBart - BLEU_ALIGN and BLEU_NLLB - BLEU_MBart pairs, while the BLEU_NLLB - BLEU_ALIGN p-value is high. 
+This again suggests that NLLB and ALIGN are roughly equal in quality, while MBart quality differs to a meaningful degree. 
 
-Приведем среднее значение метрики BLEU для моделей: 
+Here is the average value of the BLEU metric for the models: 
+
 - MBart: 0.43
+
 - NLLB: 0.53
+
 - ALIGN: 0.56
 
-Совместно с результатами статистических тестов, метрики во второй раз показывают преимущество переводов модели ALIGN, затем NLLB и в самом конце - MBart.
+Combining the results of the statistical tests and the metrics, a clear advantage of ALIGN model translations is shown for the second time, with NLLB following and at the very end - MBart.
 
 
-## Дискуссия.
+## Conclusion and discussion.
 
-Подводя итоги исследовательской работы, можно сделать четкий и конкретный вывод о модели, переводы которой обладают самым высоким качеством на основании расстояния Левенштейна и метрики BLEU: ALIGN. 
-Из трех выбранных моделей, именно эта модель обладает самыми высокими (и низкими, в случае расстояния Левенштейна) средними метриками. 
+Summarizing the research work, a clear and concrete conclusion can be drawn about the model with the best quality translations based on the Levenshtein distance and the BLEU metric: ALIGN.  
+Of the three selected models, this model has the highest (and lowest, in the case of the Levenshtein distance) average metrics. 
 
-Стоит, однако, сделать замечание о потенциальных улучшениях, которые могут повысить качество анализа. 
+There are, however, improvements to be done that could enhance the quality of the analysis. 
 
-1. Поскольку работа учебная и проводилась в условиях ограниченных вычислительных способностей, модели были выбраны с соответствующе низким количеством параметров (75 млн у ALIGN, 1.3 млрд у NLLB и 610 млн у MBart). 
-Качество перевода как правило улучшается при использовании больших моделей. 
+1. Since the work is academic and was conducted under computationally limited conditions, models were chosen based on their size in parameters (75 million for ALIGN, 1.3 billion for NLLB, and 610 million for MBart). 
+Translation quality tends to improve with larger models. 
 
-2. В финальном датасете было использовано 74 пары "друзей переводчика". Хотя такого датасета достаточно, чтобы понять общую картину качества перевода моделей, большая выборка разных "друзей" безусловно поможет в лучшем понимании итогового различия. 
+2. The final dataset used 74 pairs of "false friends". While this dataset is sufficient to understand the overall picture of model translation quality, a larger sample of different cognates would certainly help in better understanding the final difference. 
 
-3. С учетом двух направлений перевода (фр - англ, англ - фр), в финальном датасете 74 * 2 = 148 строк. В качестве улучшения и продолжения работы можно написать / собрать / сгенерировать больше записей для датасета в целом, например, вместо 2 записей на одну пару "друзей" можно подготовить 4-6 больше записей. 
+3. Taking into account the two translation directions (French to English and English to French), the final dataset has 74 * 2 = 148 lines. As an improvement and continuation of the work, more lines can be added / collected / generated for the dataset. For example, instead of 4 sentences per pair of false cognates, 8-12 can be used. 
 
-4. Интересное направление развития работы - сбор большего количества метаданных. В работе были проанализированы длина исходного предложения, перевода и расположение "друзей" в предложении. Этот список можно пополнить, например, частотой использования таких "друзей" в общении в целом. 
+4. An interesting direction for the development of the work is to collect more metadata. The work analyzed the length of the original sentence, the translation, and the location of the cognates in the sentence. This list can be supplemented, for example, by the frequency of use of such words in communication in general. 
 
-5. Наконец, итоговое предложение - с учетом успеха модели архитектуры ALIGN, которая была обучена на датасете opus, можно дообучить другие модели на этом же датасете, включая в обучающую выборку записи с "ложными друзьями". 
+5. Finally, given the success of the ALIGN model that was trained on the "opus" dataset, it is possible to further fine-tune other models on the same dataset, modifying it to include sentences with "false friends".
 
 
-## Ссылки на материалы.
+## References.
 
   1. Challenge Dataset of Cognates and False Friend Pairs from Indian Languages, Diptesh Kanojia et al. [https://aclanthology.org/2020.lrec-1.378.pdf]
   [https://www.thoughtco.com/french-english-false-cognates-faux-amis-1364675]
+  
   2. Automatic Identification of Cognates, False Friends, and Partial Cognates, Oana Magdalena Frunza et al. [https://www.researchgate.net/publication/277297339_Automatic_Identification_of_Cognates_False_Friends_and_Partial_Cognates]
-Сайты, с которых были взяты "ложные друзья":
+  
+Websites used for compiling the list of "false friends":
+
   3. [https://www.thoughtco.com/faux-amis-vocabulary-1371249]
+  
   4. [https://www.vidalingua.com/blog/faux-amis-anglais]
+  
   5. [https://wallstreetenglish.fr/fiches-anglais/general/faux-amis-anglais]
